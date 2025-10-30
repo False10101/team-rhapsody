@@ -75,3 +75,71 @@ objects = [i for i in features.columns if features[i].dtype == object]
 features.update(features[objects].fillna('None'))
 numerics = [i for i in features.columns if features[i].dtype != object]
 features.update(features[numerics].fillna(0))
+
+# --- SKEWNESS TRANSFORM ---
+numeric_dtypes = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
+numerics2 = [i for i in features.columns if features[i].dtype in numeric_dtypes]
+skew_features = features[numerics2].apply(lambda x: skew(x)).sort_values(ascending=False)
+high_skew = skew_features[skew_features > 0.5]
+skew_index = high_skew.index
+print(f"Applying Box-Cox transform to {len(skew_index)} skewed features...")
+
+for i in skew_index:
+    if len(features[i].unique()) == 1:
+        continue
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        try:
+            lambda_val = boxcox_normmax(features[i] + 1)
+            features[i] = boxcox1p(features[i], lambda_val)
+        except Exception:
+            features[i] = np.log1p(features[i])
+# --- END SKEWNESS TRANSFORM ---
+
+# Drop features
+features = features.drop(['Utilities', 'Street', 'PoolQC',], axis=1)
+
+# Create new features
+features['YrBltAndRemod'] = features['YearBuilt'] + features['YearRemodAdd']
+features['TotalSF'] = features['TotalBsmtSF'] + features['1stFlrSF'] + features['2ndFlrSF']
+features['Total_sqr_footage'] = (features['BsmtFinSF1'] + features['BsmtFinSF2'] +
+                                features['1stFlrSF'] + features['2ndFlrSF'])
+features['Total_Bathrooms'] = (features['FullBath'] + (0.5 * features['HalfBath']) +
+                               features['BsmtFullBath'] + (0.5 * features['BsmtHalfBath']))
+features['Total_porch_sf'] = (features['OpenPorchSF'] + features['3SsnPorch'] +
+                             features['EnclosedPorch'] + features['ScreenPorch'] +
+                             features['WoodDeckSF'])
+features['haspool'] = features['PoolArea'].apply(lambda x: 1 if x > 0 else 0)
+features['has2ndfloor'] = features['2ndFlrSF'].apply(lambda x: 1 if x > 0 else 0)
+features['hasgarage'] = features['GarageArea'].apply(lambda x: 1 if x > 0 else 0)
+features['hasbsmt'] = features['TotalBsmtSF'].apply(lambda x: 1 if x > 0 else 0)
+features['hasfireplace'] = features['Fireplaces'].apply(lambda x: 1 if x > 0 else 0)
+
+# Dummify
+final_features = pd.get_dummies(features).reset_index(drop=True)
+print(f"Final feature shape: {final_features.shape}")
+
+# Split back to X and X_sub
+X = final_features.iloc[:len(y), :]
+X_sub = final_features.iloc[len(y):, :]
+
+# Remove outliers from X and y
+outliers = [30, 88, 462, 631, 1322]
+X = X.drop(X.index[outliers])
+y = y.drop(y.index[outliers])
+
+# Remove overfit features
+overfit = []
+for i in X.columns:
+    counts = X[i].value_counts()
+    zeros = counts.iloc[0]
+    if zeros / len(X) * 100 > 99.94:
+        overfit.append(i)
+
+overfit = list(overfit)
+if 'MSZoning_C (all)' in X.columns:
+    overfit.append('MSZoning_C (all)')
+
+X = X.drop(overfit, axis=1)
+X_sub = X_sub.drop(overfit, axis=1)
+print(f"Final training/submission shapes: {X.shape}, {y.shape}, {X_sub.shape}")
