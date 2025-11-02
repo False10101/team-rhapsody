@@ -143,3 +143,44 @@ if 'MSZoning_C (all)' in X.columns:
 X = X.drop(overfit, axis=1)
 X_sub = X_sub.drop(overfit, axis=1)
 print(f"Final training/submission shapes: {X.shape}, {y.shape}, {X_sub.shape}")
+
+# --- 4. MODEL DEFINITION ---
+print("Defining models...")
+kfolds = KFold(n_splits=10, shuffle=True, random_state=42)
+
+alphas_alt = [14.5, 14.6, 14.7, 14.8, 14.9, 15, 15.1, 15.2, 15.3, 15.4, 15.5]
+alphas2 = [5e-05, 0.0001, 0.0002, 0.0003, 0.0004, 0.0005, 0.0006, 0.0007, 0.0008]
+e_alphas = [0.0001, 0.0002, 0.0003, 0.0004, 0.0005, 0.0006, 0.0007]
+e_l1ratio = [0.8, 0.85, 0.9, 0.95, 0.99, 1]
+
+# Base Models
+ridge = make_pipeline(RobustScaler(), RidgeCV(alphas=alphas_alt, cv=kfolds))
+lasso = make_pipeline(RobustScaler(), LassoCV(max_iter=10000000, alphas=alphas2, random_state=42, cv=kfolds))
+elasticnet = make_pipeline(RobustScaler(), ElasticNetCV(max_iter=10000000, alphas=e_alphas, cv=kfolds, l1_ratio=e_l1ratio))
+svr = make_pipeline(RobustScaler(), SVR(C= 20, epsilon= 0.008, gamma=0.0003,))
+gbr = GradientBoostingRegressor(n_estimators=3000, learning_rate=0.05, max_depth=4, max_features='sqrt',
+                                 min_samples_leaf=15, min_samples_split=10, loss='huber', random_state =42)
+lightgbm = LGBMRegressor(objective='regression', num_leaves=4, learning_rate=0.01,
+                       n_estimators=5000, max_bin=200, bagging_fraction=0.75,
+                       bagging_freq=5, bagging_seed=7, feature_fraction=0.2,
+                       feature_fraction_seed=7, verbose=-1)
+xgboost = XGBRegressor(learning_rate=0.01,n_estimators=3460,
+                                max_depth=3, min_child_weight=0,
+                                gamma=0, subsample=0.7, colsample_bytree=0.7,
+                                objective='reg:linear', nthread=-1,
+                                scale_pos_weight=1, seed=27, reg_alpha=0.00006)
+
+# Define a simple linear meta-model
+lasso_meta = make_pipeline(RobustScaler(),
+                            LassoCV(max_iter=10000000, alphas=alphas2,
+                                    random_state=42, cv=kfolds))
+
+# Stack 1: XGBoost as voter
+stack_gen_xgb = StackingCVRegressor(regressors=(ridge, lasso, elasticnet, gbr, xgboost, lightgbm),
+                                  meta_regressor=xgboost,
+                                  use_features_in_secondary=True)
+
+# Stack 2: Lasso as voter
+stack_gen_lasso = StackingCVRegressor(regressors=(ridge, lasso, elasticnet, gbr, xgboost, lightgbm),
+                                    meta_regressor=lasso_meta,
+                                    use_features_in_secondary=True)
