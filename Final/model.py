@@ -184,3 +184,15 @@ stack_gen_xgb = StackingCVRegressor(regressors=(ridge, lasso, elasticnet, gbr, x
 stack_gen_lasso = StackingCVRegressor(regressors=(ridge, lasso, elasticnet, gbr, xgboost, lightgbm),
                                     meta_regressor=lasso_meta,
                                     use_features_in_secondary=True)
+
+# --- 5. MODEL TRAINING ---
+print('START Fit')
+
+print('Stack 1 (XGB Meta)')
+stack_gen_xgb_model = stack_gen_xgb.fit(np.array(X), np.array(y))
+
+print('Stack 2 (Lasso Meta)')
+stack_gen_lasso_model = stack_gen_lasso.fit(np.array(X), np.array(y))
+
+print('All stack models fitted.')
+
