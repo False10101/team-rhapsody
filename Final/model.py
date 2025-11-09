@@ -196,3 +196,12 @@ stack_gen_lasso_model = stack_gen_lasso.fit(np.array(X), np.array(y))
 
 print('All stack models fitted.')
 
+# --- 6. BLEND PREDICTIONS (SELF-CONTAINED) ---
+
+# --- NEW BLEND FUNCTION ---
+def blend_models_predict(X_data):
+    # Clean 50/50 blend of our TWO BEST "super-models"
+    pred_xgb_stack = stack_gen_xgb_model.predict(np.array(X_data))
+    pred_lasso_stack = stack_gen_lasso_model.predict(np.array(X_data))
+    return (0.5 * pred_xgb_stack) + (0.5 * pred_lasso_stack)
+# --- END NEW BLEND FUNCTION ---
