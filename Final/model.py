@@ -205,3 +205,27 @@ def blend_models_predict(X_data):
     pred_lasso_stack = stack_gen_lasso_model.predict(np.array(X_data))
     return (0.5 * pred_xgb_stack) + (0.5 * pred_lasso_stack)
 # --- END NEW BLEND FUNCTION ---
+
+# --- 7. CREATE SUBMISSION FILE (INTERNAL MODEL ONLY) ---
+print('Predicting submission from internal model blend...')
+submission = pd.read_csv("../input/house-prices-advanced-regression-techniques/sample_submission.csv")
+
+# Get predictions from *your* blend function
+blend_predict_log = blend_models_predict(X_sub)
+
+# Reverse the log transform and floor the result
+blend_predict_final = np.floor(np.expm1(blend_predict_log))
+
+# Assign your model's predictions to the submission DataFrame
+submission['SalePrice'] = blend_predict_final
+
+# Post-processing (this is your own logic, so it's good to keep)
+print('Applying post-processing to predictions...')
+q1 = submission['SalePrice'].quantile(0.0045)
+q2 = submission['SalePrice'].quantile(0.99)
+submission['SalePrice'] = submission['SalePrice'].apply(lambda x: x if x > q1 else x*0.77)
+submission['SalePrice'] = submission['SalePrice'].apply(lambda x: x if x < q2 else x*1.1)
+
+# Save the final submission file
+submission.to_csv("submission_final_internal_blend.csv", index=False)
+print("Submission file created successfully: 'submission_final_internal_blend.csv'")
