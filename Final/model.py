@@ -21,8 +21,8 @@ warnings.filterwarnings('ignore')
 print("Loading data...")
 
 # These paths are correct for the Kaggle environment
-train = pd.read_csv('../input/house-prices-advanced-regression-techniques/train.csv')
-test = pd.read_csv('../input/house-prices-advanced-regression-techniques/test.csv')
+train = pd.read_csv('./train.csv')
+test = pd.read_csv('./test.csv')
 print ("Data is loaded!")
 
 # Drop 'Id'
@@ -208,7 +208,7 @@ def blend_models_predict(X_data):
 
 # --- 7. CREATE SUBMISSION FILE (INTERNAL MODEL ONLY) ---
 print('Predicting submission from internal model blend...')
-submission = pd.read_csv("../input/house-prices-advanced-regression-techniques/sample_submission.csv")
+submission = pd.read_csv("./sample_submission.csv")
 
 # Get predictions from *your* blend function
 blend_predict_log = blend_models_predict(X_sub)
